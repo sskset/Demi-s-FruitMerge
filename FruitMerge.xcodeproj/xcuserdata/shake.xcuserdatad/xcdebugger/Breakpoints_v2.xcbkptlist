@@ -27,9 +27,9 @@
             filePath = "FruitMerge/GameScene.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "258"
-            endingLineNumber = "258"
-            landmarkName = "spawnNextFruit()"
+            startingLineNumber = "274"
+            endingLineNumber = "274"
+            landmarkName = "setupAimingLine(from:to:dashLength:gapLength:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -43,9 +43,9 @@
             filePath = "FruitMerge/GameScene.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "257"
-            endingLineNumber = "257"
-            landmarkName = "spawnNextFruit()"
+            startingLineNumber = "273"
+            endingLineNumber = "273"
+            landmarkName = "setupAimingLine(from:to:dashLength:gapLength:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

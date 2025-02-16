@@ -22,6 +22,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var scoreLabel: SKLabelNode!
     private var shadowLabel: SKLabelNode!
     private var aimingLine: SKNode!
+    private var warningLine: SKShapeNode!
+    private var gameOverLine: SKShapeNode!
+    private var droppingFruitLine: SKShapeNode!
+    private var itemsLine: SKShapeNode!
+    private var scoreLine: SKShapeNode!
 
     var currentFruitLocation: CGPoint!
     var nextFruitLocation: CGPoint!
@@ -40,6 +45,26 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
 
+    private var warningLineY: CGFloat {
+        return (self.frame.maxY - self.frame.midY) * 0.5
+    }
+
+    private var gameOverLineY: CGFloat {
+        return (self.frame.maxY - self.frame.midY) * 0.6
+    }
+
+    private var droppingFruitLineY: CGFloat {
+        return (self.frame.maxY - self.frame.midY) * 0.7
+    }
+    
+    private var itemsLineY: CGFloat {
+        return (self.frame.maxY - self.frame.midY) * 0.8
+    }
+    
+    private var scoreLineY: CGFloat {
+        return (self.frame.maxY - self.frame.midY) * 0.9
+    }
+
     override func didMove(to view: SKView) {
         let background = SKSpriteNode(imageNamed: "background_red")
         background.name = "background"
@@ -56,41 +81,47 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         self.physicsBody?.friction = 0.5
         self.physicsBody?.restitution = 0.2
 
+        self.setupWarningLine()
+        self.setupGameOverLine()
+        self.setupDroppingFruitLine()
+        self.setupItemsLine()
+        self.setupScoreLine()
+
     }
 
     override func sceneDidLoad() {
 
-        self.currentFruitLocation = CGPoint(x: 0, y: self.size.height / 2 - 300)
+        self.currentFruitLocation = CGPoint(x: 0, y: self.droppingFruitLineY + 30)
         self.nextFruitLocation = CGPoint(
-            x: self.size.width / 4, y: self.frame.maxY - 150)
+            x: self.size.width / 4, y: self.scoreLineY + 30)
 
         currentFruit = Fruit(fruitType: FruitType.blueBerry)
 
-        currentFruit.position = CGPoint(x: 0, y: self.size.height / 2 - 300)
+        currentFruit.position = CGPoint(x: 0, y: self.droppingFruitLineY + 30)
         self.addChild(currentFruit)
 
         spawnNextFruit()
 
-//        print(self.nextFruit.position)
+        //        print(self.nextFruit.position)
 
         // Setup UI
 
         // Use a custom font (if available) for a unique look.
-        scoreLabel = SKLabelNode(fontNamed: "Chalkduster")
+        scoreLabel = SKLabelNode(fontNamed: "San Francisco")
         scoreLabel.text = "0"
         scoreLabel.fontSize = 36
         scoreLabel.fontColor = .white
 
         // Position the label at the top center with a little offset.
         scoreLabel.position = CGPoint(
-            x: self.frame.midX, y: self.frame.maxY - 50)
+            x: self.frame.midX, y: self.scoreLineY + 20)
 
         // Center the text both horizontally and vertically.
         scoreLabel.horizontalAlignmentMode = .center
         scoreLabel.verticalAlignmentMode = .center
 
         // Optionally, add a subtle drop shadow for better readability.
-        shadowLabel = SKLabelNode(fontNamed: "Chalkduster")
+        shadowLabel = SKLabelNode(fontNamed: "San Francisco")
         shadowLabel.text = scoreLabel.text
         shadowLabel.fontSize = scoreLabel.fontSize
         shadowLabel.fontColor = .black
@@ -132,11 +163,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         if self.aimingLine.isHidden { self.aimingLine.isHidden = false }
 
-        //        print("Touched Location: \(location)")
+        print(
+            "Touched Location: \(location)  Warning Line: \(self.warningLine.position)"
+        )
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let droppingFruit = self.currentFruit  else {return}
+        guard let droppingFruit = self.currentFruit else { return }
         self.run(SKAction.playSoundFileNamed("drop", waitForCompletion: false))
         droppingFruit.setupPhysics()
         self.aimingLine.isHidden = true
@@ -326,7 +359,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         // Iterate through all nodes; you might want to narrow this search to only fruit nodes.
         for node in self.children {
-            if let fruit = node as? SKSpriteNode, fruit.name == "fruit" {
+            if let fruit = node as? SKSpriteNode {
                 if let physicsBody = fruit.physicsBody {
                     // Check if the fruit is stable (i.e., nearly zero velocity)
                     let dx = abs(physicsBody.velocity.dx)
@@ -355,35 +388,113 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         //         self.view?.presentScene(gameOverScene, transition: SKTransition.fade(withDuration: 1.0))
     }
 
-    // Remove old fruits with blinking animation, then perform merging
     func removeNodesWithBlinking(
         _ nodes: [SKSpriteNode], completion: @escaping () -> Void
     ) {
-        // Define the blink action: fade out then fade in.
+        // Play sound once at the start
+        self.run(SKAction.playSoundFileNamed("bubble_merging", waitForCompletion: false))
+        
+        // Define the blink action without sound
         let fadeOut = SKAction.fadeAlpha(to: 0.0, duration: 0.25)
         let fadeIn = SKAction.fadeAlpha(to: 1.0, duration: 0.25)
         let blink = SKAction.sequence([fadeOut, fadeIn])
-
-        // Repeat the blink sequence twice (each cycle takes 0.5 sec, total 1 sec)
+        
+        // Repeat the blink sequence twice (total 1 sec)
         let blinkForOneSecond = SKAction.repeat(blink, count: 2)
-
-        // Action to remove the node from the scene
+        
+        // Removal action
         let remove = SKAction.removeFromParent()
-
-        // Sequence the blinking animation followed by removal
-        let sequence = SKAction.sequence([blinkForOneSecond, remove])
-
-        // Run the sequence on all nodes concurrently
+        
+        // Full sequence for each node
+        let nodeSequence = SKAction.sequence([blinkForOneSecond, remove])
+        
+        // Run on all nodes
         for node in nodes {
             node.physicsBody?.isDynamic = false
-            node.run(sequence)
+            node.run(nodeSequence)
         }
-
-        // Execute the completion closure after the sequence duration (1 second)
-        self.run(
-            SKAction.sequence([
-                SKAction.wait(forDuration: 1.0), SKAction.run(completion),
-            ]))
+        
+        // Execute completion after total duration
+        self.run(.sequence([
+            .wait(forDuration: 1.0),
+            .run(completion)
+        ]))
     }
 
+    func setupWarningLine() {
+        // Create a mutable path for the line
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: self.frame.minX, y: self.warningLineY))
+        path.addLine(to: CGPoint(x: size.width, y: self.warningLineY))
+
+        // Create a shape node for the line
+        warningLine = SKShapeNode(path: path)
+        warningLine.strokeColor = .orange  // Change color as needed
+        warningLine.lineWidth = 5  // Change width as needed
+
+        // Add the line node to the scene
+        addChild(warningLine)
+    }
+
+    func setupGameOverLine() {
+        // Create a mutable path for the line
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: self.frame.minX, y: self.gameOverLineY))
+        path.addLine(to: CGPoint(x: size.width, y: self.gameOverLineY))
+
+        // Create a shape node for the line
+        gameOverLine = SKShapeNode(path: path)
+        gameOverLine.strokeColor = .red  // Change color as needed
+        gameOverLine.lineWidth = 5  // Change width as needed
+
+        // Add the line node to the scene
+        addChild(gameOverLine)
+    }
+    
+    // TODO: DELETE
+    func setupDroppingFruitLine() {
+        // Create a mutable path for the line
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: self.frame.minX, y: self.droppingFruitLineY))
+        path.addLine(to: CGPoint(x: size.width, y: self.droppingFruitLineY))
+        
+        // Create a shape node for the line
+        droppingFruitLine = SKShapeNode(path: path)
+        droppingFruitLine.strokeColor = .white  // Change color as needed
+        droppingFruitLine.lineWidth = 5  // Change width as needed
+        
+        // Add the line node to the scene
+        addChild(droppingFruitLine)
+    }
+    // TODO: DELETE
+    func setupItemsLine() {
+        // Create a mutable path for the line
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: self.frame.minX, y: self.itemsLineY))
+        path.addLine(to: CGPoint(x: size.width, y: self.itemsLineY))
+        
+        // Create a shape node for the line
+        itemsLine = SKShapeNode(path: path)
+        itemsLine.strokeColor = .white  // Change color as needed
+        itemsLine.lineWidth = 5  // Change width as needed
+        
+        // Add the line node to the scene
+        addChild(itemsLine)
+    }
+
+    // TODO: DELETE
+    func setupScoreLine() {
+        // Create a mutable path for the line
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: self.frame.minX, y: self.scoreLineY))
+        path.addLine(to: CGPoint(x: size.width, y: self.scoreLineY))
+        
+        // Create a shape node for the line
+        scoreLine = SKShapeNode(path: path)
+        scoreLine.strokeColor = .white  // Change color as needed
+        scoreLine.lineWidth = 5  // Change width as needed
+        
+        // Add the line node to the scene
+        addChild(scoreLine)
+    }
 }
