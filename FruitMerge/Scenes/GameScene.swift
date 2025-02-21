@@ -12,8 +12,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     // Fruit Container
     var container: FruitContainerShape!
-    
-    var nextDroppingFruit: DroppingFruit!
+    //
+    var nextDroppingFruit: Fruit!
     var banner: FruitBanner!
     var scoreLabel: SKLabelNode!
     
@@ -52,13 +52,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleDropped),
-            name: .dropped, object: nil)
+            name: .fruitDropped, object: nil)
         
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleScored),
             name: .scored, object: nil)
     }
+    
     @objc func handleScored(_ notification: Notification) {
         if  let userInfo = notification.userInfo,
             let score = userInfo["score"] as? Int {
@@ -67,7 +68,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     @objc func handleDropped(_ notification:Notification) {
-        self.container.createDroppingFruit(self.nextDroppingFruit.fruitType)
+        NotificationCenter.default.post(
+            name: .createDroppingFruit,
+            object: nil,
+            userInfo: ["droppingFruitType": self.nextDroppingFruit.fruitType])
+        
+//        self.container.createDroppingFruit(self.nextDroppingFruit.fruitType)
         self.nextDroppingFruit.removeFromParent()
         self.setupNextDroppingFruit()
     }
@@ -84,12 +90,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Update the lastUpdateTime.
         lastUpdateTime = currentTime
-        
-        if container.droppingFruit.canDrop() {
-            container.createDroppingFruit(self.nextDroppingFruit.fruitType)
-            container.droppingFruit.attachAimingLine(
-                aimingLine: container.droppingFruitAimingLine)
-        }
     }
     
     
@@ -126,13 +126,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             self.container.position.y
             + self.container.containerSize.height + 30
 
-        self.nextDroppingFruit = DroppingFruit(nextFruitType)
+        self.nextDroppingFruit = Fruit(nextFruitType, isInDisplayMode: true)
         self.nextDroppingFruit.position = CGPoint(x: posX, y: posY)
         self.addChild(nextDroppingFruit)
     }
     
     deinit {
-        NotificationCenter.default.removeObserver(self, name: .dropped, object: nil)
+        NotificationCenter.default.removeObserver(self, name: .fruitDropped, object: nil)
         NotificationCenter.default.removeObserver(self, name: .scored, object: nil)
     }
 }

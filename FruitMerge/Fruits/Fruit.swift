@@ -8,21 +8,21 @@
 import SpriteKit
 
 class Fruit: SKSpriteNode {
-    static let DefaultSize: CGSize = CGSize(width: 30.0, height: 30.0)
+    static let DisplaySize: CGSize = CGSize(width: 30.0, height: 30.0)
 
-    var isOriginalTextureSize = false
+    var isInDisplayMode = false
 
     let fruitType: FruitType
     var isMerging = false
     static let atlas = SKTextureAtlas(named: "FruitAtlas")
 
-    init(_ fruitType: FruitType, isOriginalTextureSize: Bool = false) {
+    init(_ fruitType: FruitType, isInDisplayMode: Bool = false) {
         self.fruitType = fruitType
         let texture = GlobalTextureStore.scaledTextures[fruitType]!
         super.init(
             texture: texture,
             color: .clear,
-            size: isOriginalTextureSize ? texture.size() : Fruit.DefaultSize)
+            size: isInDisplayMode ? Fruit.DisplaySize : texture.size())
         self.zPosition = 10
 
         self.name = "fruit"
@@ -33,13 +33,15 @@ class Fruit: SKSpriteNode {
     }
 
     func merge(_ pairFruit: Fruit) {
-        guard let container = self.parent as? FruitContainerShape else { return }
+        guard let container = self.parent as? FruitContainerShape else {
+            return
+        }
         let nextFruitType = fruitType.next
         var floatPos = self.position
 
         if nextFruitType != nil {
 
-            let newFruit = Fruit(nextFruitType!, isOriginalTextureSize: true)
+            let newFruit = Fruit(nextFruitType!, isInDisplayMode: false)
             newFruit.setupPhysics()
 
             // Calculate the center between self and pairFruit
@@ -130,21 +132,4 @@ class Fruit: SKSpriteNode {
             pow(physics.velocity.dx, 2) + pow(physics.velocity.dy, 2))
         return speed < 50
     }
-    
-    func restoreToOriginalTexture() {
-        guard !self.isOriginalTextureSize else {return}
-        
-        let width = (GlobalTextureStore.scaledSizes[self.fruitType]?.width ?? 2.0) * self.size.width;
-        let height = (GlobalTextureStore.scaledSizes[self.fruitType]?.height ?? 2.0) * self.size.height;
-        self.isOriginalTextureSize = true
-        
-        // Animate scaling up to texture size and then back to the original size (1.0)
-        let scaleUp = SKAction.scale(to: CGSize(width: width, height: height), duration: 0.05)
-        
-        self.run(scaleUp)
-    }
-}
-
-extension Notification.Name {
-    static let scored = Notification.Name(".scoreď")
 }

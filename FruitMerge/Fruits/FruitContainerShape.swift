@@ -3,10 +3,22 @@ import SpriteKit
 class FruitContainerShape: SKShapeNode {
 
     var containerPhysicsBodyShpe: FruitContainerPhysicsBodyShape!
-    
+
     var containerSize: CGSize!
-    var droppingFruit: DroppingFruit!
-    var droppingFruitAimingLine: DroppingFruitAimingLine!
+    var droppingFruit: Fruit! {
+        didSet {
+            self.droppingFruitAimingLine.position = self.droppingPoint
+            self.droppingFruitAimingLine.isHidden = false
+        }
+    }
+    
+    private var droppingFruitAimingLine: DroppingFruitAimingLine! {
+        didSet {
+            self.createDroppingFruit()
+        }
+    }
+    
+    private var droppingPoint: CGPoint!
 
     var fruitPool: [FruitType] = [
         .blueBerry, .strawBerry, .lemon, .mango,
@@ -20,11 +32,12 @@ class FruitContainerShape: SKShapeNode {
         super.init()
         self.isUserInteractionEnabled = true
 
-        let cornerRadius: CGFloat = 10.0
-        containerSize = CGSize(
+        self.containerSize = CGSize(
             width: scene.frame.width * 0.9, height: scene.frame.height * 0.6)
+        self.droppingPoint = CGPoint(x: containerSize.width / 2, y: containerSize.height - 40)
 
         // Create a path for the rounded rectangle
+        let cornerRadius: CGFloat = 10.0
         let rect = CGRect(origin: .zero, size: containerSize)
         let path = CGPath(
             roundedRect: rect, cornerWidth: cornerRadius,
@@ -35,22 +48,26 @@ class FruitContainerShape: SKShapeNode {
             red: 247 / 255.0, green: 240 / 255.0, blue: 188 / 255.0, alpha: 1.0)
         self.strokeColor = .white
         self.lineWidth = 8.0
-        
+
         self.path = path
 
-        self.position = CGPoint(x: 0.05 * scene.size.width, y: 0.2 * scene.size.height)
+        self.position = CGPoint(
+            x: 0.05 * scene.size.width, y: 0.2 * scene.size.height)
 
-        self.createDroppingFruit()
-
-        self.droppingFruitAimingLine = DroppingFruitAimingLine(
-            length: self.containerSize.height / 2)
-        self.droppingFruitAimingLine.position = self.droppingFruit.position
-        self.droppingFruit.attachAimingLine(
-            aimingLine: self.droppingFruitAimingLine)
-
-        self.addChild(droppingFruitAimingLine)
-        
+        self.createDroppingFruitAimingLine()
         self.containerPhysicsBodyShpe = FruitContainerPhysicsBodyShape(in: self)
+
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleCreateDroppingFruit),
+            name: .createDroppingFruit, object: nil)
+    }
+
+    @objc func handleCreateDroppingFruit(_ notification: Notification) {
+        if let userInfo = notification.userInfo,
+            let fruitType = userInfo["droppingFruitType"] as? FruitType
+        {
+            self.createDroppingFruit(fruitType)
+        }
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -59,7 +76,13 @@ class FruitContainerShape: SKShapeNode {
 
     private var isProcessingTouch = false {
         didSet {
-            print("isProcessingTouch: \(isProcessingTouch)")
+            if !isProcessingTouch {
+                self.droppingFruit.setupPhysics()
+                self.droppingFruitAimingLine.isHidden = true
+
+                NotificationCenter.default.post(
+                    name: .fruitDropped, object: nil)
+            }
         }
     }
 
@@ -68,31 +91,33 @@ class FruitContainerShape: SKShapeNode {
             let touch = touches.first,
             let droppingFruit = self.droppingFruit
         else { return }
-
-        droppingFruit.restoreToOriginalTexture()
-
-        let touchLocation = touch.location(in: self)
-        droppingFruit.move(to: touchLocation.x)
         isProcessingTouch = true
+        let touchLocation = touch.location(in: self)
+        droppingFruit.position.x = touchLocation.x
+//        self.droppingFruitAimingLine.position.x = touchLocation.x
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first else { return }
+        guard let touch = touches.first,
+            let droppingFruit = self.droppingFruit,
+            let droppingFruitAimingLine = self.droppingFruitAimingLine
+        else { return }
         let touchLocation = touch.location(in: self)
 
         // Calculate clamped position
-        let fruitSize = self.droppingFruit.size
+        let fruitSize = droppingFruit.size
         let minX = fruitSize.width / 2
         let maxX = self.containerSize.width - fruitSize.width / 2
 
         // Clamp coordinates to container bounds
         let clampedX = max(minX, min(touchLocation.x, maxX))
 
-        self.droppingFruit.move(to: clampedX)
+        droppingFruit.position.x = clampedX
+        droppingFruitAimingLine.position.x = clampedX
+
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        self.droppingFruit.drop()
         self.isProcessingTouch = false
     }
 
@@ -102,18 +127,33 @@ class FruitContainerShape: SKShapeNode {
         self.isProcessingTouch = false
     }
 
-    func createDroppingFruit(_ fruitType: FruitType? = nil) {
-        self.droppingFruit = DroppingFruit(fruitType ?? self.randomFruitType())
+    private func createDroppingFruit(_ fruitType: FruitType? = nil) {
+        self.droppingFruit = Fruit(fruitType ?? self.randomFruitType())
         let x = containerSize.width / 2
         let y = containerSize.height - 30
         droppingFruit.position = CGPoint(x: x, y: y)
-        droppingFruit.attachAimingLine(aimingLine: self.droppingFruitAimingLine)
         self.addChild(self.droppingFruit)
+    }
+
+    private func createDroppingFruitAimingLine() {
+        self.droppingFruitAimingLine = DroppingFruitAimingLine(
+            length: self.containerSize.height / 2)
+        self.droppingFruitAimingLine.position = self.droppingPoint
+        self.droppingFruitAimingLine.zPosition = 5
+        self.addChild(self.droppingFruitAimingLine)
     }
 
     deinit {
         NotificationCenter.default.removeObserver(
-            self, name: .dropped, object: nil)
+            self,
+            name: .fruitDropped,
+            object: nil)
+
+        NotificationCenter.default.removeObserver(
+            self,
+            name: .createDroppingFruit,
+            object: nil
+        )
     }
 }
 
