@@ -11,5 +11,6 @@ import SpriteKit
 struct PhysicsCategory {
     static let none: UInt32 = 0
     static let fruit: UInt32 = 0b0001
-    static let container: UInt32 = 0b0010
+    static let movingFruit: UInt32 = 0b0010
+    static let container: UInt32 = 0b0100
 }

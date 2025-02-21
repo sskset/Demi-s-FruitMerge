@@ -42,7 +42,8 @@ class Fruit: SKSpriteNode {
         if nextFruitType != nil {
 
             let newFruit = Fruit(nextFruitType!, isInDisplayMode: false)
-            newFruit.setupPhysics()
+            newFruit.pickUp()
+            newFruit.release()
 
             // Calculate the center between self and pairFruit
             let factor: CGFloat = 0.45
@@ -106,30 +107,78 @@ class Fruit: SKSpriteNode {
             name: .scored, object: nil, userInfo: ["score": score])
     }
 
-    func setupPhysics() {
+    func pickUp() {
+        print("pickUp")
         guard let texture = self.texture else { return }
-
         self.physicsBody = SKPhysicsBody(texture: texture, size: texture.size())
-        self.physicsBody?.categoryBitMask = PhysicsCategory.fruit
-        self.physicsBody?.contactTestBitMask =
-            PhysicsCategory.fruit | PhysicsCategory.container
-        self.physicsBody?.collisionBitMask =
-            PhysicsCategory.fruit | PhysicsCategory.container
+        self.physicsBody?.collisionBitMask = PhysicsCategory.container
+        self.physicsBody?.isDynamic = false
+        self.physicsBody?.categoryBitMask = PhysicsCategory.movingFruit
 
-        self.physicsBody?.friction = 0.5
-        self.physicsBody?.restitution = 0.2
-        self.physicsBody?.density = 0.8
-        self.physicsBody?.linearDamping = 0.5
-        self.physicsBody?.angularDamping = 0.9
-        self.physicsBody?.allowsRotation = true
-
-        self.physicsBody?.applyForce(CGVector(dx: 0, dy: -4.9))
+        print("pickUp name: \(String(describing: self.name))")
     }
 
-    var isStable: Bool {
-        guard let physics = physicsBody else { return true }
-        let speed = sqrt(
-            pow(physics.velocity.dx, 2) + pow(physics.velocity.dy, 2))
-        return speed < 50
+    private var lastDragPosition: CGPoint = .zero
+    func drag(to x: CGFloat) {
+        self.position.x = x  // Immediate movement during drag
+    }
+
+    func release() {
+        print("Release initiated")
+        guard let physicsBody = self.physicsBody else { return }
+
+        // 1. Enable physics interaction
+        physicsBody.isDynamic = true
+
+        // 4. Configure physics properties
+        physicsBody.categoryBitMask = PhysicsCategory.fruit
+        physicsBody.collisionBitMask =
+            PhysicsCategory.fruit | PhysicsCategory.container
+        physicsBody.contactTestBitMask =
+            PhysicsCategory.fruit | PhysicsCategory.container
+        physicsBody.linearDamping = 0.2  // Reduce air resistance
+        physicsBody.angularDamping = 0.5
+
+        physicsBody.applyForce(CGVector(dx: 0, dy: -4.9))
+
+        self.makeAsContainerFruit()
+        print("Fruit thrown")
+    }
+
+    // Time when the fruit first became stable, if any.
+    private var stabilityStartTime: TimeInterval?
+
+    // Define a threshold for velocity that you consider "stable"
+    private let stableThreshold: CGFloat = 1.0
+
+    // Call this method every frame (e.g., from your scene's update)
+    func isStable(currentTime: TimeInterval) -> Bool {
+        guard let physics = self.physicsBody else { return true }
+        let velocity = physics.velocity
+        let speed = sqrt(velocity.dx * velocity.dx + velocity.dy * velocity.dy)
+
+        // Check if the fruit's speed is below the threshold.
+        if speed < stableThreshold {
+            // If it just became stable, record the time.
+            if stabilityStartTime == nil {
+                stabilityStartTime = currentTime
+            }
+            // If it's been stable for at least 1 second, return true.
+            if let startTime = stabilityStartTime,
+                currentTime - startTime >= 1.0
+            {
+                return true
+            }
+        } else {
+            // If the fruit moves, reset the stability timer.
+            stabilityStartTime = nil
+        }
+        return false
+    }
+
+    func makeAsContainerFruit() {
+        if self.name != "containerFruit" {
+            self.name = "containerFruit"
+        }
     }
 }

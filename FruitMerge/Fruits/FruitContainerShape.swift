@@ -11,13 +11,13 @@ class FruitContainerShape: SKShapeNode {
             self.droppingFruitAimingLine.isHidden = false
         }
     }
-    
+
     private var droppingFruitAimingLine: DroppingFruitAimingLine! {
         didSet {
             self.createDroppingFruit()
         }
     }
-    
+
     private var droppingPoint: CGPoint!
 
     var fruitPool: [FruitType] = [
@@ -28,13 +28,23 @@ class FruitContainerShape: SKShapeNode {
         return self.fruitPool.randomElement()!
     }
 
+    var warningLine: WarningLine!
+    var warningLineHeight: CGFloat {
+        return self.containerSize.height * 0.8
+    }
+    var deadLine: DeadLine!
+    var deadLineHeight: CGFloat {
+        return self.containerSize.height * 0.9
+    }
+
     init(in scene: SKScene) {
         super.init()
         self.isUserInteractionEnabled = true
 
         self.containerSize = CGSize(
             width: scene.frame.width * 0.9, height: scene.frame.height * 0.6)
-        self.droppingPoint = CGPoint(x: containerSize.width / 2, y: containerSize.height - 40)
+        self.droppingPoint = CGPoint(
+            x: containerSize.width / 2, y: containerSize.height - 40)
 
         // Create a path for the rounded rectangle
         let cornerRadius: CGFloat = 10.0
@@ -55,18 +65,31 @@ class FruitContainerShape: SKShapeNode {
             x: 0.05 * scene.size.width, y: 0.2 * scene.size.height)
 
         self.createDroppingFruitAimingLine()
+        self.warningLine = WarningLine(in: self)
+        self.deadLine = DeadLine(in: self)
         self.containerPhysicsBodyShpe = FruitContainerPhysicsBodyShape(in: self)
 
         NotificationCenter.default.addObserver(
             self, selector: #selector(handleCreateDroppingFruit),
             name: .createDroppingFruit, object: nil)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleFruitDropped),
+            name: .fruitDropped,
+            object: nil)
+    }
+
+    @objc func handleFruitDropped(_ notification: Notification) {
     }
 
     @objc func handleCreateDroppingFruit(_ notification: Notification) {
         if let userInfo = notification.userInfo,
             let fruitType = userInfo["droppingFruitType"] as? FruitType
         {
-            self.createDroppingFruit(fruitType)
+            if self.droppingFruit == nil {
+                self.createDroppingFruit(fruitType)
+            }
         }
     }
 
@@ -74,27 +97,14 @@ class FruitContainerShape: SKShapeNode {
         super.init(coder: aDecoder)
     }
 
-    private var isProcessingTouch = false {
-        didSet {
-            if !isProcessingTouch {
-                self.droppingFruit.setupPhysics()
-                self.droppingFruitAimingLine.isHidden = true
-
-                NotificationCenter.default.post(
-                    name: .fruitDropped, object: nil)
-            }
-        }
-    }
-
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard !isProcessingTouch,
-            let touch = touches.first,
-            let droppingFruit = self.droppingFruit
+        guard
+            let touch = touches.first
         else { return }
-        isProcessingTouch = true
         let touchLocation = touch.location(in: self)
+        droppingFruit.pickUp()
         droppingFruit.position.x = touchLocation.x
-//        self.droppingFruitAimingLine.position.x = touchLocation.x
+        self.droppingFruitAimingLine.position.x = droppingFruit.position.x
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -112,26 +122,28 @@ class FruitContainerShape: SKShapeNode {
         // Clamp coordinates to container bounds
         let clampedX = max(minX, min(touchLocation.x, maxX))
 
-        droppingFruit.position.x = clampedX
-        droppingFruitAimingLine.position.x = clampedX
+        droppingFruit.drag(to: clampedX)
+        droppingFruitAimingLine.position.x = droppingFruit.position.x
 
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        self.isProcessingTouch = false
+        self.droppingFruit.release()
+        self.droppingFruitAimingLine.isHidden = true
+        self.droppingFruit = nil
+        
+        NotificationCenter.default.post(
+            name: .fruitDropped, object: nil)
     }
 
     override func touchesCancelled(
         _ touches: Set<UITouch>, with event: UIEvent?
     ) {
-        self.isProcessingTouch = false
     }
 
     private func createDroppingFruit(_ fruitType: FruitType? = nil) {
         self.droppingFruit = Fruit(fruitType ?? self.randomFruitType())
-        let x = containerSize.width / 2
-        let y = containerSize.height - 30
-        droppingFruit.position = CGPoint(x: x, y: y)
+        droppingFruit.position = self.droppingPoint
         self.addChild(self.droppingFruit)
     }
 

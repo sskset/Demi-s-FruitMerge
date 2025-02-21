@@ -16,16 +16,48 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var nextDroppingFruit: Fruit!
     var banner: FruitBanner!
     var scoreLabel: SKLabelNode!
-    
+
     var score: Int = 0 {
         didSet {
             self.scoreLabel.text = "\(self.score)"
         }
     }
-    
+
     private var lastUpdateTime: TimeInterval?
     private var touchInterval: TimeInterval = 0.5
-    var isGameOver = false
+    var isGameOver = false {
+        didSet {
+            guard isGameOver, !oldValue else { return }
+
+            self.isPaused = true
+            self.physicsWorld.speed = 0
+
+            // Ensure we're on main thread and have a valid view reference
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self,
+                    let view = self.view
+                else { return }
+
+                print("Game Over - Presenting GameOverScene")
+
+                // Create scene using view's bounds (not scene's bounds)
+                let gameOverScene = GameOverScene(
+                    size: view.bounds.size,
+                    score: self.score
+                )
+                gameOverScene.scaleMode = .aspectFill
+
+                // 4. Configure transition properly
+                view.presentScene(
+                    gameOverScene
+                )
+
+                // 6. Clean up previous scene
+                self.removeAllActions()
+                self.removeAllChildren()
+            }
+        }
+    }
 
     override func didMove(to view: SKView) {
 
@@ -34,85 +66,104 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         self.banner = FruitBanner(in: self)
         self.addChild(banner)
 
-//        self.physicsWorld.gravity = CGVector(dx:0, dy: -4.9)
+        //        self.physicsWorld.gravity = CGVector(dx:0, dy: -4.9)
         self.physicsWorld.contactDelegate = self
-        
+
         self.setupNextDroppingFruit()
-        
-        
+
         self.scoreLabel = SKLabelNode(text: "\(score)")
         self.scoreLabel.fontName = "Helvetica-Bold"
         self.scoreLabel.fontSize = 36
         self.scoreLabel.fontColor = .orange
         // Optionally, offset the score slightly upward.
-        self.scoreLabel.position = CGPoint(x: self.frame.width / 2, y: self.frame.maxY - 80)
+        self.scoreLabel.position = CGPoint(
+            x: self.frame.width / 2, y: self.frame.maxY - 80)
         self.scoreLabel.zPosition = 100
         self.addChild(self.scoreLabel)
-        
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleDropped),
             name: .fruitDropped, object: nil)
-        
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleScored),
             name: .scored, object: nil)
     }
-    
+
     @objc func handleScored(_ notification: Notification) {
-        if  let userInfo = notification.userInfo,
-            let score = userInfo["score"] as? Int {
+        if let userInfo = notification.userInfo,
+            let score = userInfo["score"] as? Int
+        {
             self.score += score
         }
     }
-    
-    @objc func handleDropped(_ notification:Notification) {
+
+    @objc func handleDropped(_ notification: Notification) {
         NotificationCenter.default.post(
             name: .createDroppingFruit,
             object: nil,
             userInfo: ["droppingFruitType": self.nextDroppingFruit.fruitType])
-        
-//        self.container.createDroppingFruit(self.nextDroppingFruit.fruitType)
         self.nextDroppingFruit.removeFromParent()
         self.setupNextDroppingFruit()
     }
 
     override func update(_ currentTime: TimeInterval) {
-        // If lastUpdateTime is nil (first update), set it and return.
-        guard let lastTime = lastUpdateTime else {
-            lastUpdateTime = currentTime
-            return
+        guard let container = self.container else {return}
+        container.enumerateChildNodes(
+            withName: "containerFruit"
+        ) { node, stop in
+            if let fruit = node as? Fruit {
+                if fruit.isStable(currentTime: currentTime) {
+                    // Calculate the fruit's top position in container coordinates
+                    let fruitTopY = fruit.position.y + (fruit.size.height / 2)
+                    
+                    // Get reference to the container's boundaries
+                    let deadLineHeight = container.deadLineHeight
+                    let warningHeight = container.warningLineHeight
+                    
+                    // Check against thresholds
+                    if fruitTopY >= deadLineHeight {
+                        print(
+                            "fruitTopY:\(fruitTopY) dead:\(deadLineHeight) warning:\(warningHeight)"
+                        )
+                        self.isGameOver = true
+                    } else if fruitTopY >= deadLineHeight * 0.8 {
+                        print(
+                            "fruitTopY:\(fruitTopY) dead:\(deadLineHeight) warning:\(warningHeight)"
+                        )
+                        container.deadLine.blink()
+                    } else if fruitTopY >= warningHeight * 0.8 {
+                        print(
+                            "fruitTopY:\(fruitTopY) dead:\(deadLineHeight) warning:\(warningHeight)"
+                        )
+                        container.warningLine.blink()
+                    }
+                }
+            }
         }
-        
-        // If not enough time has passed since the last update, return.
-        guard currentTime - lastTime > touchInterval else { return }
-        
-        // Update the lastUpdateTime.
-        lastUpdateTime = currentTime
     }
-    
-    
+
     func didBegin(_ contact: SKPhysicsContact) {
         let collision =
             contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
 
-        guard collision == PhysicsCategory.fruit | PhysicsCategory.fruit else {
-            return
+        if collision == PhysicsCategory.fruit | PhysicsCategory.fruit {
+
+            guard let fruitA = contact.bodyA.node as? Fruit,
+                let fruitB = contact.bodyB.node as? Fruit,
+                fruitA.fruitType == fruitB.fruitType,
+                !fruitA.isMerging,
+                !fruitB.isMerging
+            else { return }
+
+            // Mark fruits as being merged
+            fruitA.isMerging = true
+            fruitB.isMerging = true
+
+            fruitA.merge(fruitB)
         }
-
-        guard let fruitA = contact.bodyA.node as? Fruit,
-            let fruitB = contact.bodyB.node as? Fruit,
-            fruitA.fruitType == fruitB.fruitType,
-            !fruitA.isMerging,
-            !fruitB.isMerging
-        else { return }
-
-        // Mark fruits as being merged
-        fruitA.isMerging = true
-        fruitB.isMerging = true
-
-        fruitA.merge(fruitB)
     }
 
     private func setupNextDroppingFruit() {
@@ -130,9 +181,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         self.nextDroppingFruit.position = CGPoint(x: posX, y: posY)
         self.addChild(nextDroppingFruit)
     }
-    
+
     deinit {
-        NotificationCenter.default.removeObserver(self, name: .fruitDropped, object: nil)
-        NotificationCenter.default.removeObserver(self, name: .scored, object: nil)
+        NotificationCenter.default.removeObserver(
+            self, name: .fruitDropped, object: nil)
+        NotificationCenter.default.removeObserver(
+            self, name: .scored, object: nil)
     }
 }

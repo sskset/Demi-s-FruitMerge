@@ -35,9 +35,9 @@ class LoadingScene: SKScene {
 //                testScene.scaleMode = .aspectFit
 //                view.presentScene(testScene)
                 
-                let testScene = GameScene(size: view.bounds.size)
-                testScene.scaleMode = .aspectFit
-                view.presentScene(testScene)
+                let gameScene = GameScene(size: view.bounds.size)
+                gameScene.scaleMode = .aspectFit
+                view.presentScene(gameScene)
             }
         }
     }

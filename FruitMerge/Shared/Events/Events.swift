@@ -13,4 +13,7 @@ extension Notification.Name {
     static let scored = Notification.Name(".scoreď")
     
     static let createDroppingFruit = Notification.Name(".createDroppingFruit")
+    
+    static let touchWarningLine = Notification.Name(".touchWarningLine")
+    static let touchDeadLine = Notification.Name(".touchDeadLine")
 }
