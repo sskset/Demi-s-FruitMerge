@@ -8,10 +8,11 @@
 import GameplayKit
 import SpriteKit
 
-class TestScene: SKScene, SKPhysicsContactDelegate {
+class GameScene: SKScene, SKPhysicsContactDelegate {
 
     // Fruit Container
-    var fruitContainer: FruitContainer!
+    var container: FruitContainerShape!
+    
     var nextDroppingFruit: DroppingFruit!
     var banner: FruitBanner!
     var scoreLabel: SKLabelNode!
@@ -21,13 +22,15 @@ class TestScene: SKScene, SKPhysicsContactDelegate {
             self.scoreLabel.text = "\(self.score)"
         }
     }
+    
     private var lastUpdateTime: TimeInterval?
     private var touchInterval: TimeInterval = 0.5
+    var isGameOver = false
 
     override func didMove(to view: SKView) {
 
         self.backgroundColor = .gray
-        self.fruitContainer = self.setupFruitContainer()
+        self.container = self.setupFruitContainer()
         self.banner = FruitBanner(in: self)
         self.addChild(banner)
 
@@ -64,19 +67,28 @@ class TestScene: SKScene, SKPhysicsContactDelegate {
     }
     
     @objc func handleDropped(_ notification:Notification) {
-        self.fruitContainer.createDroppingFruit(self.nextDroppingFruit.fruitType)
+        self.container.createDroppingFruit(self.nextDroppingFruit.fruitType)
         self.nextDroppingFruit.removeFromParent()
         self.setupNextDroppingFruit()
     }
 
     override func update(_ currentTime: TimeInterval) {
-        guard currentTime - (lastUpdateTime ?? TimeInterval.nan) > touchInterval else { return }
-        self.lastUpdateTime = currentTime
+        // If lastUpdateTime is nil (first update), set it and return.
+        guard let lastTime = lastUpdateTime else {
+            lastUpdateTime = currentTime
+            return
+        }
         
-        if fruitContainer.droppingFruit.canDrop() {
-            fruitContainer.createDroppingFruit(self.nextDroppingFruit.fruitType)
-            fruitContainer.droppingFruit.attachAimingLine(
-                aimingLine: fruitContainer.droppingFruitAimingLine)
+        // If not enough time has passed since the last update, return.
+        guard currentTime - lastTime > touchInterval else { return }
+        
+        // Update the lastUpdateTime.
+        lastUpdateTime = currentTime
+        
+        if container.droppingFruit.canDrop() {
+            container.createDroppingFruit(self.nextDroppingFruit.fruitType)
+            container.droppingFruit.attachAimingLine(
+                aimingLine: container.droppingFruitAimingLine)
         }
     }
     
@@ -100,25 +112,19 @@ class TestScene: SKScene, SKPhysicsContactDelegate {
         fruitA.isMerging = true
         fruitB.isMerging = true
 
-        NotificationCenter.default.post(
-            name: .scored,
-            object: nil,
-            userInfo: ["score": fruitA.fruitType.rawValue * 2]
-        )
-
         fruitA.merge(fruitB)
     }
 
     private func setupNextDroppingFruit() {
         guard
-            let nextFruitType = self.fruitContainer.fruitPool.randomElement()
+            let nextFruitType = self.container.fruitPool.randomElement()
         else { return }
         let posX =
-            self.fruitContainer.position.x
-            + self.fruitContainer.containerSize.width - 20
+            self.container.position.x
+            + self.container.containerSize.width - 20
         let posY =
-            self.fruitContainer.position.y
-            + self.fruitContainer.containerSize.height + 30
+            self.container.position.y
+            + self.container.containerSize.height + 30
 
         self.nextDroppingFruit = DroppingFruit(nextFruitType)
         self.nextDroppingFruit.position = CGPoint(x: posX, y: posY)

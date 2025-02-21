@@ -10,14 +10,19 @@ import SpriteKit
 class Fruit: SKSpriteNode {
     static let DefaultSize: CGSize = CGSize(width: 30.0, height: 30.0)
 
+    var isOriginalTextureSize = false
+
     let fruitType: FruitType
     var isMerging = false
     static let atlas = SKTextureAtlas(named: "FruitAtlas")
 
-    init(_ fruitType: FruitType, isDefaultSize:Bool = true) {
+    init(_ fruitType: FruitType, isOriginalTextureSize: Bool = false) {
         self.fruitType = fruitType
         let texture = GlobalTextureStore.scaledTextures[fruitType]!
-        super.init(texture: texture, color: .clear, size: isDefaultSize ? Fruit.DefaultSize : texture.size())
+        super.init(
+            texture: texture,
+            color: .clear,
+            size: isOriginalTextureSize ? texture.size() : Fruit.DefaultSize)
         self.zPosition = 10
 
         self.name = "fruit"
@@ -28,19 +33,23 @@ class Fruit: SKSpriteNode {
     }
 
     func merge(_ pairFruit: Fruit) {
-        guard let container = self.parent as? FruitContainer else { return }
+        guard let container = self.parent as? FruitContainerShape else { return }
         let nextFruitType = fruitType.next
         var floatPos = self.position
 
         if nextFruitType != nil {
 
-            let newFruit = Fruit(nextFruitType!, isDefaultSize: false)
+            let newFruit = Fruit(nextFruitType!, isOriginalTextureSize: true)
             newFruit.setupPhysics()
 
             // Calculate the center between self and pairFruit
             let factor: CGFloat = 0.45
-            let centerX = self.position.x + (pairFruit.position.x - self.position.x) * factor
-            let centerY = self.position.y + (pairFruit.position.y - self.position.y) * factor
+            let centerX =
+                self.position.x + (pairFruit.position.x - self.position.x)
+                * factor
+            let centerY =
+                self.position.y + (pairFruit.position.y - self.position.y)
+                * factor
             var newFruitPosition = CGPoint(x: centerX, y: centerY)
 
             // Calculate the container's boundaries using its path's bounding box.
@@ -90,13 +99,14 @@ class Fruit: SKSpriteNode {
         // Remove the merging fruits from the scene.
         self.removeFromParent()
         pairFruit.removeFromParent()
-        
-        NotificationCenter.default.post(name: .scored, object: nil, userInfo: ["score": score])
+
+        NotificationCenter.default.post(
+            name: .scored, object: nil, userInfo: ["score": score])
     }
 
     func setupPhysics() {
         guard let texture = self.texture else { return }
-        
+
         self.physicsBody = SKPhysicsBody(texture: texture, size: texture.size())
         self.physicsBody?.categoryBitMask = PhysicsCategory.fruit
         self.physicsBody?.contactTestBitMask =
@@ -110,8 +120,8 @@ class Fruit: SKSpriteNode {
         self.physicsBody?.linearDamping = 0.5
         self.physicsBody?.angularDamping = 0.9
         self.physicsBody?.allowsRotation = true
-        
-        self.physicsBody?.applyForce(CGVector(dx: 0, dy: -2.9))
+
+        self.physicsBody?.applyForce(CGVector(dx: 0, dy: -4.9))
     }
 
     var isStable: Bool {
@@ -119,6 +129,19 @@ class Fruit: SKSpriteNode {
         let speed = sqrt(
             pow(physics.velocity.dx, 2) + pow(physics.velocity.dy, 2))
         return speed < 50
+    }
+    
+    func restoreToOriginalTexture() {
+        guard !self.isOriginalTextureSize else {return}
+        
+        let width = (GlobalTextureStore.scaledSizes[self.fruitType]?.width ?? 2.0) * self.size.width;
+        let height = (GlobalTextureStore.scaledSizes[self.fruitType]?.height ?? 2.0) * self.size.height;
+        self.isOriginalTextureSize = true
+        
+        // Animate scaling up to texture size and then back to the original size (1.0)
+        let scaleUp = SKAction.scale(to: CGSize(width: width, height: height), duration: 0.05)
+        
+        self.run(scaleUp)
     }
 }
 

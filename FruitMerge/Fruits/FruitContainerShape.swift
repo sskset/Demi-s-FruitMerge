@@ -1,13 +1,15 @@
 import SpriteKit
 
-class FruitContainer: SKShapeNode {
+class FruitContainerShape: SKShapeNode {
 
+    var containerPhysicsBodyShpe: FruitContainerPhysicsBodyShape!
+    
     var containerSize: CGSize!
     var droppingFruit: DroppingFruit!
     var droppingFruitAimingLine: DroppingFruitAimingLine!
 
     var fruitPool: [FruitType] = [
-        .blueBerry, .strawBerry, .lemon, .mango
+        .blueBerry, .strawBerry, .lemon, .mango,
     ]
 
     func randomFruitType() -> FruitType {
@@ -28,28 +30,15 @@ class FruitContainer: SKShapeNode {
             roundedRect: rect, cornerWidth: cornerRadius,
             cornerHeight: cornerRadius, transform: nil)
 
-        self.path = path
-
         // Set the fill and stroke properties
         self.fillColor = SKColor(
             red: 247 / 255.0, green: 240 / 255.0, blue: 188 / 255.0, alpha: 1.0)
         self.strokeColor = .white
         self.lineWidth = 8.0
+        
+        self.path = path
 
-        self.position = CGPoint(
-            x: 0.05 * scene.size.width, y: 0.2 * scene.size.height)
-
-        print("Container Position: \(self.position)")
-
-        // Setup Physics
-        self.physicsBody = SKPhysicsBody(edgeLoopFrom: path)
-        physicsBody?.isDynamic = false
-        physicsBody?.affectedByGravity = false
-        physicsBody?.restitution = 0.2
-        physicsBody?.friction = 0.9
-        physicsBody?.categoryBitMask = PhysicsCategory.container
-        physicsBody?.collisionBitMask = PhysicsCategory.fruit
-        physicsBody?.contactTestBitMask = PhysicsCategory.fruit
+        self.position = CGPoint(x: 0.05 * scene.size.width, y: 0.2 * scene.size.height)
 
         self.createDroppingFruit()
 
@@ -60,42 +49,31 @@ class FruitContainer: SKShapeNode {
             aimingLine: self.droppingFruitAimingLine)
 
         self.addChild(droppingFruitAimingLine)
-
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(handleDropped), name: .dropped,
-            object: nil)
+        
+        self.containerPhysicsBodyShpe = FruitContainerPhysicsBodyShape(in: self)
     }
 
     required init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
     }
 
-    @objc func handleDropped(_ notifiation: Notification) {
-
-        print("dropped handled in FruitContainer")
+    private var isProcessingTouch = false {
+        didSet {
+            print("isProcessingTouch: \(isProcessingTouch)")
+        }
     }
 
-    // MARK: - Touch Handling
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first,
+        guard !isProcessingTouch,
+            let touch = touches.first,
             let droppingFruit = self.droppingFruit
         else { return }
-        
-        // Avoid triggering a new scale action if one is already running
-        if droppingFruit.action(forKey: "scaleUpAction") == nil {
-            
-            
-            let touchLocation = touch.location(in: self)
-            let width = (GlobalTextureStore.scaledSizes[droppingFruit.fruitType]?.width ?? 2.0) * droppingFruit.size.width;
-            let height = (GlobalTextureStore.scaledSizes[droppingFruit.fruitType]?.height ?? 2.0) * droppingFruit.size.height;
-            
-            // Animate scaling up to texture size and then back to the original size (1.0)
-            let scaleUp = SKAction.scale(to: CGSize(width: width, height: height), duration: 0.05)
-            
-            droppingFruit.run(
-                SKAction.sequence([scaleUp]), withKey: "scaleUpAction")
-            droppingFruit.move(to: touchLocation.x)
-        }
+
+        droppingFruit.restoreToOriginalTexture()
+
+        let touchLocation = touch.location(in: self)
+        droppingFruit.move(to: touchLocation.x)
+        isProcessingTouch = true
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -115,6 +93,13 @@ class FruitContainer: SKShapeNode {
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         self.droppingFruit.drop()
+        self.isProcessingTouch = false
+    }
+
+    override func touchesCancelled(
+        _ touches: Set<UITouch>, with event: UIEvent?
+    ) {
+        self.isProcessingTouch = false
     }
 
     func createDroppingFruit(_ fruitType: FruitType? = nil) {
@@ -133,8 +118,8 @@ class FruitContainer: SKShapeNode {
 }
 
 extension SKScene {
-    func setupFruitContainer() -> FruitContainer {
-        let fruitContainer = FruitContainer(in: self)
+    func setupFruitContainer() -> FruitContainerShape {
+        let fruitContainer = FruitContainerShape(in: self)
         self.addChild(fruitContainer)
         return fruitContainer
     }

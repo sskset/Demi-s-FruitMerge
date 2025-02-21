@@ -18,7 +18,7 @@ class LoadingScene: SKScene {
                 sprite.setScale(ft.scale)
                 
                 if let scaledTexture = view.texture(from: sprite) {
-//                    print("Scaled Size: \(scaledTexture.size())")
+//                    print("Fruit Type: \(ft) Scaled Size: \(scaledTexture.size())")
                     GlobalTextureStore.scaledTextures[ft] = scaledTexture
                     GlobalTextureStore.scaledSizes[ft] = CGSize(
                         width: scaledTexture.size().width / 30,
@@ -31,7 +31,11 @@ class LoadingScene: SKScene {
             // Ensure we're on main thread for scene transition
             DispatchQueue.main.async {
                 // Create scene with view's actual size
-                let testScene = TestScene(size: view.bounds.size)
+//                let testScene = GameScene(size: view.bounds.size)
+//                testScene.scaleMode = .aspectFit
+//                view.presentScene(testScene)
+                
+                let testScene = GameScene(size: view.bounds.size)
                 testScene.scaleMode = .aspectFit
                 view.presentScene(testScene)
             }
