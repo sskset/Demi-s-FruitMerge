@@ -1,43 +1,28 @@
-//
-//  GameViewController.swift
-//  FruitMerge
-//
-//  Created by Shan Ke on 15/2/2025.
-//
-
 import UIKit
 import SpriteKit
 import GameplayKit
 
 class GameViewController: UIViewController {
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // Ensure the view is an SKView
-        guard let skView = self.view as? SKView else {
-            print("View is not an SKView")
-            return
-        }
+        // Create an SKView instance
+        let skView = SKView(frame: self.view.frame)
+        self.view.addSubview(skView)
         
-        // Load 'GameScene.sks' as an SKScene
-        if let scene = SKScene(fileNamed: "GameScene") as? GameScene {
-            // Set the scale mode to scale to fit the window
-            scene.scaleMode = .aspectFit
-            
-            // Present the scene
-            skView.presentScene(scene)
-            
-            skView.ignoresSiblingOrder = true
-            
-            skView.showsFPS = true
-            skView.showsNodeCount = true
-            skView.showsPhysics = true
-        } else {
-            print("Failed to load GameScene.sks")
-        }
+        // Configure the SKView directly
+        skView.showsFPS = true
+        skView.showsNodeCount = true
+        skView.showsPhysics = true
+//        skView.ignoresSiblingOrder = true
+        
+        // Create and present the LoadingScene.
+        let loadingScene = LoadingScene(size: skView.bounds.size)
+        loadingScene.scaleMode = .aspectFit
+        skView.presentScene(loadingScene)
     }
-
+    
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
         if UIDevice.current.userInterfaceIdiom == .phone {
             return .allButUpsideDown
@@ -45,7 +30,7 @@ class GameViewController: UIViewController {
             return .all
         }
     }
-
+    
     override var prefersStatusBarHidden: Bool {
         return true
     }
