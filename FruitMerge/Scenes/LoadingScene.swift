@@ -20,7 +20,9 @@ class LoadingScene: SKScene {
                 if let scaledTexture = view.texture(from: sprite) {
 //                    print("Scaled Size: \(scaledTexture.size())")
                     GlobalTextureStore.scaledTextures[ft] = scaledTexture
-                    GlobalTextureStore.scaledRetio[ft] = scaledTexture.size().width / 30
+                    GlobalTextureStore.scaledSizes[ft] = CGSize(
+                        width: scaledTexture.size().width / 30,
+                        height: scaledTexture.size().height / 30)
                 }
             }
             

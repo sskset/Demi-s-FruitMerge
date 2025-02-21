@@ -78,18 +78,24 @@ class FruitContainer: SKShapeNode {
     // MARK: - Touch Handling
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first,
-            let droppingFruit = self.droppingFruit,
-            let texture = droppingFruit.texture
+            let droppingFruit = self.droppingFruit
         else { return }
-
-        let touchLocation = touch.location(in: self)
-
-        // Animate scaling up to texture size and then back to the original size (1.0)
-        let scaleUp = SKAction.scale(to: GlobalTextureStore.scaledRetio[droppingFruit.fruitType]!, duration: 0.05)
-
-        droppingFruit.run(
-            SKAction.sequence([scaleUp]), withKey: "scaleUpAction")
-        droppingFruit.move(to: touchLocation.x)
+        
+        // Avoid triggering a new scale action if one is already running
+        if droppingFruit.action(forKey: "scaleUpAction") == nil {
+            
+            
+            let touchLocation = touch.location(in: self)
+            let width = (GlobalTextureStore.scaledSizes[droppingFruit.fruitType]?.width ?? 2.0) * droppingFruit.size.width;
+            let height = (GlobalTextureStore.scaledSizes[droppingFruit.fruitType]?.height ?? 2.0) * droppingFruit.size.height;
+            
+            // Animate scaling up to texture size and then back to the original size (1.0)
+            let scaleUp = SKAction.scale(to: CGSize(width: width, height: height), duration: 0.05)
+            
+            droppingFruit.run(
+                SKAction.sequence([scaleUp]), withKey: "scaleUpAction")
+            droppingFruit.move(to: touchLocation.x)
+        }
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {

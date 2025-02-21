@@ -38,8 +38,9 @@ class Fruit: SKSpriteNode {
             newFruit.setupPhysics()
 
             // Calculate the center between self and pairFruit
-            let centerX = (self.position.x + pairFruit.position.x) / 2
-            let centerY = (self.position.y + pairFruit.position.y) / 2
+            let factor: CGFloat = 0.45
+            let centerX = self.position.x + (pairFruit.position.x - self.position.x) * factor
+            let centerY = self.position.y + (pairFruit.position.y - self.position.y) * factor
             var newFruitPosition = CGPoint(x: centerX, y: centerY)
 
             // Calculate the container's boundaries using its path's bounding box.
@@ -96,8 +97,7 @@ class Fruit: SKSpriteNode {
     func setupPhysics() {
         guard let texture = self.texture else { return }
         
-        self.physicsBody = SKPhysicsBody(
-            texture: texture, size: texture.size())
+        self.physicsBody = SKPhysicsBody(texture: texture, size: texture.size())
         self.physicsBody?.categoryBitMask = PhysicsCategory.fruit
         self.physicsBody?.contactTestBitMask =
             PhysicsCategory.fruit | PhysicsCategory.container

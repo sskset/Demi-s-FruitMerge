@@ -9,5 +9,5 @@ import SpriteKit
 
 class GlobalTextureStore {
     static var scaledTextures: [FruitType: SKTexture] = [:]
-    static var scaledRetio: [FruitType: CGFloat] = [:]
+    static var scaledSizes: [FruitType: CGSize] = [:]
 }
