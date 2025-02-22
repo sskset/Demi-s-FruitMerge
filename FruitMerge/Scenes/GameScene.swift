@@ -26,7 +26,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     override func didMove(to view: SKView) {
 
-        self.backgroundColor = .gray
+        self.backgroundColor = SKColor(red: 57/255.0, green: 36/255.0, blue: 69/255.0, alpha: 1.0)
         self.container = self.setupFruitContainer()
         self.container.startMonitoring()
         self.banner = FruitBanner(in: self)
