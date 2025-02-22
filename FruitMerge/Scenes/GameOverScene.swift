@@ -9,6 +9,31 @@ class GameOverScene: SKScene {
         self.score = score
         super.init(size: size)
         scaleMode = .aspectFill
+        
+        // Only proceed if the player is authenticated.
+        if GameCenterManager.shared.isAuthenticated {
+            // Submit the current score.
+            GameCenterManager.shared.submitScore(score) { error in
+                if let error = error {
+                    print("Error submitting score: \(error.localizedDescription)")
+                } else {
+                    print("Score \(score) submitted successfully!")
+                }
+            }
+            
+            // Fetch the player's history score.
+            GameCenterManager.shared.fetchPlayerHighestScore() { historyScore, error in
+                if let error = error {
+                    print("Error fetching player's history score: \(error.localizedDescription)")
+                } else if let historyScore = historyScore {
+                    print("Player's history score: \(historyScore)")
+                } else {
+                    print("Player's history score not available.")
+                }
+            }
+        } else {
+            print("Player is not authenticated. Score submission and history retrieval skipped.")
+        }
     }
     
     required init?(coder aDecoder: NSCoder) {

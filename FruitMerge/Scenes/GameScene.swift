@@ -125,19 +125,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                     
                     // Check against thresholds
                     if fruitTopY >= deadLineHeight {
-                        print(
-                            "fruitTopY:\(fruitTopY) dead:\(deadLineHeight) warning:\(warningHeight)"
-                        )
                         self.isGameOver = true
                     } else if fruitTopY >= deadLineHeight * 0.8 {
-                        print(
-                            "fruitTopY:\(fruitTopY) dead:\(deadLineHeight) warning:\(warningHeight)"
-                        )
                         container.deadLine.blink()
                     } else if fruitTopY >= warningHeight * 0.8 {
-                        print(
-                            "fruitTopY:\(fruitTopY) dead:\(deadLineHeight) warning:\(warningHeight)"
-                        )
                         container.warningLine.blink()
                     }
                 }

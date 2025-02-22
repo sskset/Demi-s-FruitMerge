@@ -108,14 +108,11 @@ class Fruit: SKSpriteNode {
     }
 
     func pickUp() {
-        print("pickUp")
         guard let texture = self.texture else { return }
         self.physicsBody = SKPhysicsBody(texture: texture, size: texture.size())
         self.physicsBody?.collisionBitMask = PhysicsCategory.container
         self.physicsBody?.isDynamic = false
         self.physicsBody?.categoryBitMask = PhysicsCategory.movingFruit
-
-        print("pickUp name: \(String(describing: self.name))")
     }
 
     private var lastDragPosition: CGPoint = .zero
@@ -124,7 +121,6 @@ class Fruit: SKSpriteNode {
     }
 
     func release() {
-        print("Release initiated")
         guard let physicsBody = self.physicsBody else { return }
 
         // 1. Enable physics interaction
@@ -142,7 +138,6 @@ class Fruit: SKSpriteNode {
         physicsBody.applyForce(CGVector(dx: 0, dy: -4.9))
 
         self.makeAsContainerFruit()
-        print("Fruit thrown")
     }
 
     // Time when the fruit first became stable, if any.
