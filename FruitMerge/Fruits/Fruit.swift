@@ -142,34 +142,52 @@ class Fruit: SKSpriteNode {
 
     // Time when the fruit first became stable, if any.
     private var stabilityStartTime: TimeInterval?
-
+    // The position at which the fruit first became stable.
+    private var stablePosition: CGPoint?
     // Define a threshold for velocity that you consider "stable"
     private let stableThreshold: CGFloat = 1.0
 
-    // Call this method every frame (e.g., from your scene's update)
+
     func isStable(currentTime: TimeInterval) -> Bool {
+        // If there's no physics body, consider it stable.
         guard let physics = self.physicsBody else { return true }
+        
+        // Compute the current speed.
         let velocity = physics.velocity
         let speed = sqrt(velocity.dx * velocity.dx + velocity.dy * velocity.dy)
-
-        // Check if the fruit's speed is below the threshold.
+        
+        // Define a small tolerance for position drift (adjust as needed).
+        let positionTolerance: CGFloat = 2.0
+        let currentPosition = self.position
+        
         if speed < stableThreshold {
-            // If it just became stable, record the time.
+            // If this is the first frame with low speed, record the time and position.
             if stabilityStartTime == nil {
                 stabilityStartTime = currentTime
+                stablePosition = currentPosition
+            } else if let recordedPosition = stablePosition {
+                // Check if the node's position has drifted beyond the tolerance.
+                if abs(currentPosition.x - recordedPosition.x) > positionTolerance ||
+                    abs(currentPosition.y - recordedPosition.y) > positionTolerance {
+                    // Node has moved significantly, reset the stability timer and record the new position.
+                    stabilityStartTime = currentTime
+                    stablePosition = currentPosition
+                }
             }
-            // If it's been stable for at least 1 second, return true.
-            if let startTime = stabilityStartTime,
-                currentTime - startTime >= 1.0
-            {
+            
+            // Check if the node has been stable (and at nearly the same position) for at least 1 second.
+            if let startTime = stabilityStartTime, currentTime - startTime >= 1.0 {
                 return true
             }
         } else {
-            // If the fruit moves, reset the stability timer.
+            // If the node is moving too fast, reset the stability timer and position.
             stabilityStartTime = nil
+            stablePosition = nil
         }
+        
         return false
     }
+
 
     func makeAsContainerFruit() {
         if self.name != "containerFruit" {

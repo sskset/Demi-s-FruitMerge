@@ -16,4 +16,6 @@ extension Notification.Name {
     
     static let touchWarningLine = Notification.Name(".touchWarningLine")
     static let touchDeadLine = Notification.Name(".touchDeadLine")
+    
+    static let gameOver = Notification.Name(".gameOver")
 }

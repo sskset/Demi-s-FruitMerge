@@ -23,48 +23,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
 
-    private var lastUpdateTime: TimeInterval?
-    private var touchInterval: TimeInterval = 0.5
-    var isGameOver = false {
-        didSet {
-            guard isGameOver, !oldValue else { return }
-
-            self.isPaused = true
-            self.physicsWorld.speed = 0
-
-            // Ensure we're on main thread and have a valid view reference
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self,
-                    let view = self.view
-                else { return }
-
-                print("Game Over - Presenting GameOverScene")
-
-                // Create scene using view's bounds (not scene's bounds)
-                let gameOverScene = GameOverScene(
-                    size: view.bounds.size,
-                    score: self.score
-                )
-                gameOverScene.scaleMode = .aspectFill
-
-                // 4. Configure transition properly
-                view.presentScene(
-                    gameOverScene
-                )
-
-                // 6. Clean up previous scene
-                self.removeAllActions()
-                self.removeAllChildren()
-            }
-        }
-    }
 
     override func didMove(to view: SKView) {
 
         self.backgroundColor = .gray
         self.container = self.setupFruitContainer()
+        self.container.startMonitoring()
         self.banner = FruitBanner(in: self)
         self.addChild(banner)
+        
+        self.isUserInteractionEnabled = false
 
         //        self.physicsWorld.gravity = CGVector(dx:0, dy: -4.9)
         self.physicsWorld.contactDelegate = self
@@ -90,6 +58,40 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             self,
             selector: #selector(handleScored),
             name: .scored, object: nil)
+        
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleGameOver), name: .gameOver, object: nil)
+    }
+    
+    @objc func handleGameOver(_ notification: Notification) {
+        self.container.stopMonitoring()
+        self.isPaused = true
+        self.physicsWorld.speed = 0
+        
+        // Ensure we're on main thread and have a valid view reference
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self,
+                  let view = self.view
+            else { return }
+            
+            print("Game Over - Presenting GameOverScene")
+            
+            // Create scene using view's bounds (not scene's bounds)
+            let gameOverScene = GameOverScene(
+                size: view.bounds.size,
+                score: self.score
+            )
+            gameOverScene.scaleMode = .aspectFill
+            
+            // 4. Configure transition properly
+            view.presentScene(
+                gameOverScene
+            )
+            
+            // 6. Clean up previous scene
+            self.removeAllActions()
+            self.removeAllChildren()
+        }
     }
 
     @objc func handleScored(_ notification: Notification) {
@@ -107,33 +109,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             userInfo: ["droppingFruitType": self.nextDroppingFruit.fruitType])
         self.nextDroppingFruit.removeFromParent()
         self.setupNextDroppingFruit()
-    }
-
-    override func update(_ currentTime: TimeInterval) {
-        guard let container = self.container else {return}
-        container.enumerateChildNodes(
-            withName: "containerFruit"
-        ) { node, stop in
-            if let fruit = node as? Fruit {
-                if fruit.isStable(currentTime: currentTime) {
-                    // Calculate the fruit's top position in container coordinates
-                    let fruitTopY = fruit.position.y + (fruit.size.height / 2)
-                    
-                    // Get reference to the container's boundaries
-                    let deadLineHeight = container.deadLineHeight
-                    let warningHeight = container.warningLineHeight
-                    
-                    // Check against thresholds
-                    if fruitTopY >= deadLineHeight {
-                        self.isGameOver = true
-                    } else if fruitTopY >= deadLineHeight * 0.8 {
-                        container.deadLine.blink()
-                    } else if fruitTopY >= warningHeight * 0.8 {
-                        container.warningLine.blink()
-                    }
-                }
-            }
-        }
     }
 
     func didBegin(_ contact: SKPhysicsContact) {

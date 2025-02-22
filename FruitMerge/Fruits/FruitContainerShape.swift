@@ -36,6 +36,42 @@ class FruitContainerShape: SKShapeNode {
     var deadLineHeight: CGFloat {
         return self.containerSize.height * 0.9
     }
+    
+    var checkTimer: Timer?
+    
+    func startMonitoring() {
+        self.checkTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) {[weak self]_ in
+            self?.checkFruitsForGameOver()
+        }
+    }
+    
+    func stopMonitoring() {
+        checkTimer?.invalidate()
+        checkTimer = nil
+    }
+    
+    func checkFruitsForGameOver() {
+        let startTime = Date()
+        for fruit in self.children.compactMap({ $0 as? Fruit })
+            .filter({ $0.name == "containerFruit" && $0.isStable(currentTime: Date().timeIntervalSince1970) }) {
+            let fruitTopY = fruit.position.y + (fruit.size.height / 2)
+            
+            // Get reference to the container's boundaries
+            let deadLineHeight = self.deadLineHeight
+            let warningHeight = self.warningLineHeight
+            
+            // Check against thresholds
+            if fruitTopY >= deadLineHeight {
+                NotificationCenter.default.post(name: .gameOver, object: nil)
+            } else if fruitTopY >= deadLineHeight * 0.8 {
+                self.deadLine.blink()
+            } else if fruitTopY >= warningHeight * 0.8 {
+                self.warningLine.blink()
+            }
+        }
+        let endTime = Date()
+        print("Node Count: \(self.children.count) Duration in seconds: \(endTime.timeIntervalSince(startTime))")
+    }
 
     init(in scene: SKScene) {
         super.init()
@@ -96,6 +132,16 @@ class FruitContainerShape: SKShapeNode {
     required init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
     }
+    
+    private func getClampedX(location: CGPoint) -> CGFloat {
+        // Calculate clamped position
+        let fruitSize = droppingFruit.size
+        let minX = fruitSize.width / 2
+        let maxX = self.containerSize.width - fruitSize.width / 2
+        
+        // Clamp coordinates to container bounds
+        return max(minX, min(location.x, maxX))
+    }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard
@@ -103,7 +149,9 @@ class FruitContainerShape: SKShapeNode {
         else { return }
         let touchLocation = touch.location(in: self)
         droppingFruit.pickUp()
-        droppingFruit.position.x = touchLocation.x
+        
+        let clampedX = self.getClampedX(location: touchLocation)
+        droppingFruit.position.x = clampedX
         self.droppingFruitAimingLine.position.x = droppingFruit.position.x
     }
 
@@ -114,13 +162,7 @@ class FruitContainerShape: SKShapeNode {
         else { return }
         let touchLocation = touch.location(in: self)
 
-        // Calculate clamped position
-        let fruitSize = droppingFruit.size
-        let minX = fruitSize.width / 2
-        let maxX = self.containerSize.width - fruitSize.width / 2
-
-        // Clamp coordinates to container bounds
-        let clampedX = max(minX, min(touchLocation.x, maxX))
+        let clampedX = self.getClampedX(location: touchLocation)
 
         droppingFruit.drag(to: clampedX)
         droppingFruitAimingLine.position.x = droppingFruit.position.x
@@ -128,6 +170,11 @@ class FruitContainerShape: SKShapeNode {
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = touches.first
+        else { return }
+        let touchLocation = touch.location(in: self)
+        let clampedX = self.getClampedX(location: touchLocation)
+        self.droppingFruit.position.x = clampedX
         self.droppingFruit.release()
         self.droppingFruitAimingLine.isHidden = true
         self.droppingFruit = nil
@@ -164,6 +211,12 @@ class FruitContainerShape: SKShapeNode {
         NotificationCenter.default.removeObserver(
             self,
             name: .createDroppingFruit,
+            object: nil
+        )
+        
+        NotificationCenter.default.removeObserver(
+            self,
+            name: .gameOver,
             object: nil
         )
     }
