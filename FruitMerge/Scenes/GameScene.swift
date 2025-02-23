@@ -5,9 +5,9 @@
 //  Created by Shan Ke on 16/2/2025.
 //
 
+import AVFoundation
 import GameplayKit
 import SpriteKit
-import AVFoundation
 
 class GameScene: SKScene, SKPhysicsContactDelegate {
 
@@ -26,7 +26,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             self.scoreLabel.text = "\(self.score)"
         }
     }
-
 
     override func didMove(to view: SKView) {
 
@@ -61,41 +60,59 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             selector: #selector(handleScored),
             name: .scored,
             object: nil)
-        
+
         NotificationCenter.default.addObserver(
             self, selector: #selector(handleGameOver),
             name: .gameOver,
             object: nil)
-        
+
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification, object: nil)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil)
+
         self.playBackgroundMusic()
     }
-    
+
+    @objc func appDidEnterBackground() {
+        stopBackgroundMusic()
+    }
+
+    @objc func appDidBecomeActive() {
+        self.playBackgroundMusic()
+    }
+
     @objc func handleGameOver(_ notification: Notification) {
         stopBackgroundMusic()
         self.container.stopMonitoring()
         self.isPaused = true
         self.physicsWorld.speed = 0
-        
+
         // Ensure we're on main thread and have a valid view reference
         DispatchQueue.main.async { [weak self] in
             guard let self = self,
-                  let view = self.view
+                let view = self.view
             else { return }
-            
+
             print("Game Over - Presenting GameOverScene")
-            
+
             // Create scene using view's bounds (not scene's bounds)
             let gameOverScene = GameOverScene(
                 size: view.bounds.size,
                 score: self.score
             )
             gameOverScene.scaleMode = .aspectFill
-            
+
             // 4. Configure transition properly
             view.presentScene(
                 gameOverScene
             )
-            
+
             // 6. Clean up previous scene
             self.removeAllActions()
             self.removeAllChildren()
@@ -111,7 +128,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private var dropSound: SKAudioNode!
-    
+
     @objc func handleDropped(_ notification: Notification) {
         playBubbleSound()
         NotificationCenter.default.post(
@@ -160,11 +177,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     deinit {
-        NotificationCenter.default.removeObserver(
-            self, name: .fruitDropped, object: nil)
-        NotificationCenter.default.removeObserver(
-            self, name: .scored, object: nil)
-        NotificationCenter.default.removeObserver(
-            self, name: .gameOver, object: nil)
+        NotificationCenter.default.removeObserver(self)
     }
 }
