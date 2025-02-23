@@ -7,17 +7,21 @@
 
 import GameplayKit
 import SpriteKit
+import AVFoundation
 
 class GameScene: SKScene, SKPhysicsContactDelegate {
 
     // Fruit Container
     var container: FruitContainerShape!
-    //
+    // Next Fruit
     var nextDroppingFruit: Fruit!
+    // Fruit Banner (at bottom)
     var banner: FruitBanner!
+    // Score Label (at top)
     var scoreLabel: SKLabelNode!
 
-    var score: Int = 0 {
+    // Current Score
+    private var score: Int = 0 {
         didSet {
             self.scoreLabel.text = "\(self.score)"
         }
@@ -26,16 +30,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     override func didMove(to view: SKView) {
 
-        self.backgroundColor = SKColor(red: 57/255.0, green: 36/255.0, blue: 69/255.0, alpha: 1.0)
+        self.isUserInteractionEnabled = false
+        self.physicsWorld.contactDelegate = self
+        self.backgroundColor = GlobalTextureStore.backgroundColor
         self.container = self.setupFruitContainer()
         self.container.startMonitoring()
         self.banner = FruitBanner(in: self)
         self.addChild(banner)
-        
-        self.isUserInteractionEnabled = false
-
-        //        self.physicsWorld.gravity = CGVector(dx:0, dy: -4.9)
-        self.physicsWorld.contactDelegate = self
 
         self.setupNextDroppingFruit()
 
@@ -52,18 +53,25 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleDropped),
-            name: .fruitDropped, object: nil)
+            name: .fruitDropped,
+            object: nil)
 
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleScored),
-            name: .scored, object: nil)
+            name: .scored,
+            object: nil)
         
         NotificationCenter.default.addObserver(
-            self, selector: #selector(handleGameOver), name: .gameOver, object: nil)
+            self, selector: #selector(handleGameOver),
+            name: .gameOver,
+            object: nil)
+        
+        self.playBackgroundMusic()
     }
     
     @objc func handleGameOver(_ notification: Notification) {
+        stopBackgroundMusic()
         self.container.stopMonitoring()
         self.isPaused = true
         self.physicsWorld.speed = 0
@@ -102,7 +110,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
 
+    private var dropSound: SKAudioNode!
+    
     @objc func handleDropped(_ notification: Notification) {
+        playBubbleSound()
         NotificationCenter.default.post(
             name: .createDroppingFruit,
             object: nil,
@@ -153,5 +164,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             self, name: .fruitDropped, object: nil)
         NotificationCenter.default.removeObserver(
             self, name: .scored, object: nil)
+        NotificationCenter.default.removeObserver(
+            self, name: .gameOver, object: nil)
     }
 }

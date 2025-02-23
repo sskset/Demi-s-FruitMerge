@@ -36,6 +36,7 @@ class Fruit: SKSpriteNode {
         guard let container = self.parent as? FruitContainerShape else {
             return
         }
+        playMergeSound()
         let nextFruitType = fruitType.next
         var floatPos = self.position
 

@@ -2,8 +2,10 @@ import SpriteKit
 
 class FruitContainerShape: SKShapeNode {
 
-    var containerPhysicsBodyShpe: FruitContainerPhysicsBodyShape!
+    // Phyics Body
+    private var containerPhysicsBodyShpe: FruitContainerPhysicsBodyShape!
 
+    // Fruit Container Size
     var containerSize: CGSize!
     var droppingFruit: Fruit! {
         didSet {
@@ -51,7 +53,6 @@ class FruitContainerShape: SKShapeNode {
     }
     
     func checkFruitsForGameOver() {
-        let startTime = Date()
         for fruit in self.children.compactMap({ $0 as? Fruit })
             .filter({ $0.name == "containerFruit" && $0.isStable(currentTime: Date().timeIntervalSince1970) }) {
             let fruitTopY = fruit.position.y + (fruit.size.height / 2)
@@ -69,8 +70,6 @@ class FruitContainerShape: SKShapeNode {
                 self.warningLine.blink()
             }
         }
-        let endTime = Date()
-        print("Node Count: \(self.children.count) Duration in seconds: \(endTime.timeIntervalSince(startTime))")
     }
 
     init(in scene: SKScene) {
@@ -106,7 +105,8 @@ class FruitContainerShape: SKShapeNode {
         self.containerPhysicsBodyShpe = FruitContainerPhysicsBodyShape(in: self)
 
         NotificationCenter.default.addObserver(
-            self, selector: #selector(handleCreateDroppingFruit),
+            self,
+            selector: #selector(handleCreateDroppingFruit),
             name: .createDroppingFruit, object: nil)
 
         NotificationCenter.default.addObserver(

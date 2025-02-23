@@ -1,48 +1,87 @@
+import AVFoundation
 import SpriteKit
 
 class LoadingScene: SKScene {
-
+    
     let fruitAtlasName: String = "FruitAtlas"
-    var scaledTextures: [String: SKTexture] = [:]
-
+    
     override func didMove(to view: SKView) {
-        // Preload textures using the correct closure signature
+        preloadAssets(for: view)
+    }
+    
+    func preloadAssets(for view: SKView) {
         let atlasNames = [fruitAtlasName]
+        let dispatchGroup = DispatchGroup()
+        
+        // Preload texture atlases
+        dispatchGroup.enter()
         SKTextureAtlas.preloadTextureAtlasesNamed(atlasNames) { error, atlases in
+            if let error = error {
+                print("Error preloading texture atlases: \(error)")
+            }
             let fruitAtlas = SKTextureAtlas(named: self.fruitAtlasName)
             for ft in FruitType.allCases {
                 let textureName = "fruit\(ft.rawValue)"
                 let originalTexture = fruitAtlas.textureNamed(textureName)
-//                print("Fruit Type: \(ft) Original: \(originalTexture.size())")
                 let sprite = SKSpriteNode(texture: originalTexture)
                 sprite.setScale(ft.scale)
                 
                 if let scaledTexture = view.texture(from: sprite) {
-//                    print("Fruit Type: \(ft) Scaled Size: \(scaledTexture.size())")
                     GlobalTextureStore.scaledTextures[ft] = scaledTexture
                     GlobalTextureStore.scaledSizes[ft] = CGSize(
                         width: scaledTexture.size().width / 30,
                         height: scaledTexture.size().height / 30)
                 }
             }
-            
-            
-            
-            // Ensure we're on main thread for scene transition
-            DispatchQueue.main.async {
-                // Create scene with view's actual size
-//                let testScene = GameScene(size: view.bounds.size)
-//                testScene.scaleMode = .aspectFit
-//                view.presentScene(testScene)
-                
-                let gameScene = GameScene(size: view.bounds.size)
-                gameScene.scaleMode = .aspectFit
-                view.presentScene(gameScene)
-            }
+            dispatchGroup.leave()
+        }
+        
+        // Preload audio files
+        dispatchGroup.enter()
+        preloadAudioFiles {
+            dispatchGroup.leave()
+        }
+        
+        // When both tasks are finished, configure audio session and present GameScene
+        dispatchGroup.notify(queue: .main) {
+            self.configureAudioSession()
+            let gameScene = GameScene(size: view.bounds.size)
+            gameScene.scaleMode = .aspectFit
+            view.presentScene(gameScene)
         }
     }
-
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        print("touchee")
+    
+    func preloadAudioFiles(completion: @escaping () -> Void) {
+        // List of audio files to preload (without extension)
+        let audioFilenames = ["game_scene", "bubble", "merge"]
+        
+        for file in audioFilenames {
+            // Adjust subdirectory if your audio files are stored in a folder (e.g., "Sounds")
+            guard let url = Bundle.main.url(forResource: file, withExtension: "mp3") else {
+                print("Error: Audio file \(file).mp3 not found")
+                continue
+            }
+            do {
+                let player = try AVAudioPlayer(contentsOf: url)
+                // Preload the audio buffer
+                player.prepareToPlay()
+                GlobalAudioStore.players[file] = player
+            } catch {
+                print("Error loading audio file \(file): \(error.localizedDescription)")
+            }
+        }
+        completion()
+    }
+    
+    func configureAudioSession() {
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playback, mode: .default, options: [])
+            try audioSession.setPreferredIOBufferDuration(0.01)  // Example for low latency
+            try audioSession.setActive(true)
+            print("Audio session configured with IOBufferDuration: \(audioSession.ioBufferDuration)")
+        } catch {
+            print("Error configuring audio session: \(error.localizedDescription)")
+        }
     }
 }
