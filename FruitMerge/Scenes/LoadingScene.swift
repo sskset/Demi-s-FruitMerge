@@ -4,13 +4,14 @@ import SpriteKit
 class LoadingScene: SKScene {
     
     let fruitAtlasName: String = "FruitAtlas"
+    let uiAtlasName: String = "UIAtlas"
     
     override func didMove(to view: SKView) {
         preloadAssets(for: view)
     }
     
     func preloadAssets(for view: SKView) {
-        let atlasNames = [fruitAtlasName]
+        let atlasNames = [fruitAtlasName, uiAtlasName]
         let dispatchGroup = DispatchGroup()
         
         // Preload texture atlases
@@ -45,7 +46,8 @@ class LoadingScene: SKScene {
         // When both tasks are finished, configure audio session and present GameScene
         dispatchGroup.notify(queue: .main) {
             self.configureAudioSession()
-            let gameScene = GameScene(size: view.bounds.size)
+            let gameScene = GameOverScene(size: view.bounds.size, score:1928)
+//            let gameScene = GameScene(size: view.bounds.size)
             gameScene.scaleMode = .aspectFit
             view.presentScene(gameScene)
         }

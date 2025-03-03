@@ -1,7 +1,7 @@
 import GameKit
 import UIKit
 
-class GameCenterManager: NSObject, GKGameCenterControllerDelegate {
+class GameCenterManager: NSObject {
     
     // Leaderboard ID (replace with your actual leaderboard identifier)
     static let leaderboardID = "codedance.com.au.fruitmerge.scoreboard"
@@ -107,12 +107,5 @@ class GameCenterManager: NSObject, GKGameCenterControllerDelegate {
                 }
             }
         }
-    }
-
-    
-    // MARK: - GKGameCenterControllerDelegate
-    
-    func gameCenterViewControllerDidFinish(_ gameCenterViewController: GKGameCenterViewController) {
-        gameCenterViewController.dismiss(animated: true, completion: nil)
     }
 }

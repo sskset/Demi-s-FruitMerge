@@ -18,4 +18,5 @@ extension Notification.Name {
     static let touchDeadLine = Notification.Name(".touchDeadLine")
     
     static let gameOver = Notification.Name(".gameOver")
+    static let viewLeaderboard = Notification.Name(".viewLeaderboard")
 }
