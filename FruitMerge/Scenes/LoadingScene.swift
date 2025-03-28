@@ -46,8 +46,8 @@ class LoadingScene: SKScene {
         // When both tasks are finished, configure audio session and present GameScene
         dispatchGroup.notify(queue: .main) {
             self.configureAudioSession()
-            let gameScene = GameOverScene(size: view.bounds.size, score:1928)
-//            let gameScene = GameScene(size: view.bounds.size)
+//            let gameScene = GameOverScene(size: view.bounds.size)
+            let gameScene = GameScene(size: view.bounds.size)
             gameScene.scaleMode = .aspectFit
             view.presentScene(gameScene)
         }

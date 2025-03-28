@@ -13,8 +13,10 @@ class GameViewController: UIViewController, GKGameCenterControllerDelegate {
             self, selector: #selector(handleViewLeaderboard),
             name: .viewLeaderboard, object: nil)
 
-        // Authenticate the local Game Center player.
-        GameCenterManager.shared.authenticateLocalPlayer(presentingVC: self)
+        if !GameCenterManager.shared.isAuthenticated {
+            // Authenticate the local Game Center player.
+            GameCenterManager.shared.authenticateLocalPlayer()
+        }
 
         // Create an SKView instance and add it to the view hierarchy.
         let skView = SKView(frame: self.view.frame)
@@ -72,7 +74,7 @@ class GameViewController: UIViewController, GKGameCenterControllerDelegate {
         _ gameCenterViewController: GKGameCenterViewController
     ) {
         gameCenterViewController.dismiss(animated: true) { [weak self] in
-            guard let self = self, let skView = self.view as? SKView else {
+            guard let self = self, let _ = self.view as? SKView else {
                 return
             }
             // If gameOverScene exists, call resumeGame()

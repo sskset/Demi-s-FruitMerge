@@ -2,57 +2,19 @@ import SpriteKit
 
 class GameOverScene: SKScene {
     private let uiAtlas = SKTextureAtlas(named: "UIAtlas")
-    private var score: Int = 0 {
-        didSet {
-            UserDefaults.standard.set(score, forKey: "score")
-        }
-    }
+    private var score: Int = 0
     private var highestScore: Int = 0
     private var restartButton: SKSpriteNode!
     private var gameOverBanner: SKSpriteNode!
     private var leaderboardButton: SKSpriteNode!
+    private var gameCenterButton: SKSpriteNode!
     private var highestScoreValueLabel: SKLabelNode!
 
     // MARK: - Initialization
-    init(size: CGSize, score: Int = 0) {
-        if score == 0 {
-            self.score = UserDefaults.standard.integer(forKey: "score")
-        } else {
-            self.score = score
-        }
+    init(size: CGSize, score: Int? = 0) {
+        self.score = score ?? 0
         super.init(size: size)
         scaleMode = .aspectFill
-
-        // Only proceed if the player is authenticated.
-        if GameCenterManager.shared.isAuthenticated {
-            // Submit the current score.
-            GameCenterManager.shared.submitScore(self.score) { error in
-                if let error = error {
-                    print(
-                        "Error submitting score: \(error.localizedDescription)")
-                } else {
-                    print("Score \(self.score) submitted successfully!")
-                }
-            }
-
-            // Fetch the player's history score.
-            GameCenterManager.shared.fetchPlayerHighestScore {
-                historyScore, error in
-                if let error = error {
-                    print(
-                        "Error fetching player's history score: \(error.localizedDescription)"
-                    )
-                } else if let historyScore = historyScore {
-                    self.highestScore = historyScore
-                } else {
-                    print("Player's history score not available.")
-                }
-            }
-        } else {
-            print(
-                "Player is not authenticated. Score submission and history retrieval skipped."
-            )
-        }
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -61,12 +23,32 @@ class GameOverScene: SKScene {
 
     // MARK: - Scene Setup
     override func didMove(to view: SKView) {
-        print("didMove: \(self.highestScore) and \(self.score)")
         createBackground()
         createGameOverText()
         createRestartButton()
+        createLeaderboardButton()
         addParticleEffect()
         self.isPaused = false
+
+        Task {
+            if !GameCenterManager.shared.isAuthenticated {
+                try await GameCenterManager.shared
+                    .authenticateLocalPlayerAsync()
+            }
+
+            if self.score > 0 {
+                GameCenterManager.shared.submitScore(self.score)
+            }
+            
+            do {
+                let highestScore = try await GameCenterManager.shared.fetchPlayerHighestScoreAsync()
+                self.highestScore = highestScore ?? 0
+                print("Highest Score: \(self.highestScore)")
+                self.highestScoreValueLabel.text = "\(self.highestScore)"
+            }catch {
+                self.highestScoreValueLabel.text = "\(self.score)"
+            }
+        }
     }
 
     private func createBackground() {
@@ -121,7 +103,7 @@ class GameOverScene: SKScene {
         scoreTitleLabel.fontSize = 24
         scoreTitleLabel.fontColor = .white
         scoreTitleLabel.zPosition = 3
-        scoreTitleLabel.position = CGPoint(x: 0, y: -10)  // Adjust position for spacing
+        scoreTitleLabel.position = CGPoint(x: 0, y: -30)  // Adjust position for spacing
 
         // Score Value
         let scoreValueLabel = SKLabelNode(text: "\(self.score)")
@@ -129,7 +111,7 @@ class GameOverScene: SKScene {
         scoreValueLabel.fontSize = 24
         scoreValueLabel.fontColor = .white
         scoreValueLabel.zPosition = 3
-        scoreValueLabel.position = CGPoint(x: 0, y: -50)  // Below title
+        scoreValueLabel.position = CGPoint(x: 0, y: -70)  // Below title
 
         // Highest Score Label (Title)
         let highestScoreTitleLabel = SKLabelNode(text: "Highest Score")
@@ -176,40 +158,46 @@ class GameOverScene: SKScene {
                     .scale(to: 1.01, duration: 0.5),
                     .scale(to: 0.99, duration: 0.5),
                 ])))
+    }
 
+    private func createLeaderboardButton() {
         let leaderboardTexture = uiAtlas.textureNamed(
             "ButtonText_Large_Orange_Round")
         leaderboardButton = SKSpriteNode(
-            texture: leaderboardTexture, size: CGSize(width: 200, height: 60))
+            texture: leaderboardTexture,
+            size: CGSize(width: 200, height: 60))
         leaderboardButton.name = "leaderboardButton"
         leaderboardButton.position = CGPoint(
             x: restartButton.position.x, y: restartButton.position.y - 100)
         leaderboardButton.zPosition = 1
 
-        let leaderboardButtonText = SKLabelNode(text: "Leaderboard")
-        leaderboardButtonText.fontColor = .white
-        leaderboardButtonText.fontName = GlobalTextureStore.fontName
-        leaderboardButtonText.fontSize = 24
-        leaderboardButtonText.position = CGPoint(x: 0, y: -10)
-        leaderboardButtonText.zPosition = 3
-        leaderboardButton.addChild(leaderboardButtonText)
+        if GameCenterManager.shared.isAuthenticated {
+            let leaderboardButtonText = SKLabelNode(text: "Leaderboard")
+            leaderboardButtonText.fontColor = .white
+            leaderboardButtonText.fontName = GlobalTextureStore.fontName
+            leaderboardButtonText.fontSize = 24
+            leaderboardButtonText.position = CGPoint(x: 0, y: -10)
+            leaderboardButtonText.zPosition = 3
+            leaderboardButton.addChild(leaderboardButtonText)
 
-        let leaderboardButtonTextShadow = SKLabelNode(text: "Leaderboard")
-        leaderboardButtonTextShadow.fontColor = .gray
-        leaderboardButtonTextShadow.fontName = GlobalTextureStore.fontName
-        leaderboardButtonTextShadow.fontSize = 24
-        leaderboardButtonTextShadow.position = CGPoint(x: 0, y: -8)
-        leaderboardButtonTextShadow.zPosition = 2
-        leaderboardButton.addChild(leaderboardButtonTextShadow)
-        addChild(leaderboardButton)
+            let leaderboardButtonTextShadow = SKLabelNode(text: "Leaderboard")
+            leaderboardButtonTextShadow.fontColor = .gray
+            leaderboardButtonTextShadow.fontName = GlobalTextureStore.fontName
+            leaderboardButtonTextShadow.fontSize = 24
+            leaderboardButtonTextShadow.position = CGPoint(x: 0, y: -8)
+            leaderboardButtonTextShadow.zPosition = 2
+            leaderboardButton.addChild(leaderboardButtonTextShadow)
+            addChild(leaderboardButton)
 
-        leaderboardButton.run(
-            .repeatForever(
-                .sequence([
-                    .scale(to: 1.01, duration: 0.5),
-                    .scale(to: 0.99, duration: 0.5),
-                ])))
+            leaderboardButton.run(
+                .repeatForever(
+                    .sequence([
+                        .scale(to: 1.01, duration: 0.5),
+                        .scale(to: 0.99, duration: 0.5),
+                    ])))
+        } else {
 
+        }
     }
 
     private func addParticleEffect() {
@@ -224,27 +212,16 @@ class GameOverScene: SKScene {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
         let location = touch.location(in: self)
+        let touchedNodes = nodes(at: location)
 
-        if nodes(at: location).contains(restartButton) {
-            // Animate button press
-            restartButton.run(
-                .sequence([
-                    .scale(to: 0.9, duration: 0.1),
-                    .scale(to: 1.0, duration: 0.1),
-                    .run { [weak self] in
-                        self?.restartGame()
-                    },
-                ]))
-        } else if nodes(at: location).contains(leaderboardButton) {
-            // Animate button press
-            leaderboardButton.run(
-                .sequence([
-                    .scale(to: 0.9, duration: 0.1),
-                    .scale(to: 1.0, duration: 0.1),
-                    .run { [weak self] in
-                        self?.viewLeaderboard()
-                    },
-                ]))
+        if touchedNodes.contains(restartButton) {
+            restartButton.animatePress { [weak self] in
+                self?.restartGame()
+            }
+        } else if touchedNodes.contains(leaderboardButton) {
+            leaderboardButton.animatePress { [weak self] in
+                self?.viewLeaderboard()
+            }
         }
     }
 
