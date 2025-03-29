@@ -17,11 +17,43 @@ jobs:
 
       - name: Set Default Scheme
         run: |
-          # Retrieve the scheme list in JSON, extract the first target as the default scheme
-          scheme_list=$(xcodebuild -list -json | tr -d "\n")
-          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
-          echo "$default" > default_scheme
+          # Debug: List directory contents
+          echo "Current directory contents:"
+          ls -la
+
+          # Find Xcode project/workspace
+          if [ -n "$(find . -maxdepth 1 -name '*.xcworkspace' -print -quit)" ]; then 
+            echo "Found workspace file"
+            project_file=$(find . -maxdepth 1 -name "*.xcworkspace" | head -n 1)
+          else 
+            echo "Looking for xcodeproj file"
+            project_file=$(find . -maxdepth 1 -name "*.xcodeproj" | head -n 1)
+          fi
+
+          if [ -z "$project_file" ]; then
+            echo "Error: No Xcode project or workspace found"
+            exit 1
+          fi
+
+          echo "Using project file: $project_file"
+
+          # Get scheme list with error handling
+          echo "Getting scheme list..."
+          scheme_list=$(xcodebuild -list -json -project "$project_file" 2>&1)
+          if [ $? -ne 0 ]; then
+            echo "Error getting scheme list: $scheme_list"
+            echo "Attempting to use project name as scheme..."
+            default=$(basename "$project_file" | sed 's/\.[^.]*$//')
+          else
+            default=$(echo "$scheme_list" | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]" 2>/dev/null)
+            if [ -z "$default" ]; then
+              echo "Could not parse scheme from JSON, using project name..."
+              default=$(basename "$project_file" | sed 's/\.[^.]*$//')
+            fi
+          fi
+
           echo "Using default scheme: $default"
+          echo "$default" > default_scheme
           echo "DEFAULT_SCHEME=$default" >> $GITHUB_ENV
 
       - name: Build
