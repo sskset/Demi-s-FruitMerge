@@ -1,30 +1,61 @@
-name: Xcode - Build and Analyze
+name: Xcode - Build and Test
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ['main']
   pull_request:
-    branches: [ "main" ]
+    branches: ['main']
 
 jobs:
-  build:
-    name: Build and analyse default scheme using xcodebuild command
+  build-test:
+    name: Build and Test iOS Sprite Game
     runs-on: macos-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
+
       - name: Set Default Scheme
         run: |
+          # Retrieve the scheme list in JSON, extract the first target as the default scheme
           scheme_list=$(xcodebuild -list -json | tr -d "\n")
           default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
-          echo $default | cat >default
-          echo Using default scheme: $default
+          echo "$default" > default_scheme
+          echo "Using default scheme: $default"
+
       - name: Build
         env:
           scheme: ${{ 'default' }}
         run: |
-          if [ $scheme = default ]; then scheme=$(cat default); fi
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          xcodebuild clean build analyze -scheme "$scheme" -"$filetype_parameter" "$file_to_build" | xcpretty && exit ${PIPESTATUS[0]}
+          # Read scheme if not provided explicitly
+          if [ "$scheme" = "default" ]; then scheme=$(cat default_scheme); fi
+          # Determine whether to build using workspace or project file
+          if ls -A | grep -iq "\.xcworkspace$"; then 
+            filetype_parameter="workspace"
+            file_to_build=$(ls -A | grep -i "\.xcworkspace$")
+          else 
+            filetype_parameter="project"
+            file_to_build=$(ls -A | grep -i "\.xcodeproj$")
+          fi
+          file_to_build=$(echo $file_to_build | awk '{$1=$1;print}')
+          # Clean, build, and analyze using the determined file
+          xcodebuild clean build analyze -scheme "$scheme" -"$filetype_parameter" "$file_to_build" | xcpretty
+          exit ${PIPESTATUS[0]}
+
+      - name: Test
+        env:
+          scheme: ${{ 'default' }}
+        run: |
+          if [ "$scheme" = "default" ]; then scheme=$(cat default_scheme); fi
+          if ls -A | grep -iq "\.xcworkspace$"; then 
+            filetype_parameter="workspace"
+            file_to_build=$(ls -A | grep -i "\.xcworkspace$")
+          else 
+            filetype_parameter="project"
+            file_to_build=$(ls -A | grep -i "\.xcodeproj$")
+          fi
+          file_to_build=$(echo $file_to_build | awk '{$1=$1;print}')
+          # Run tests on a simulator (adjust the destination settings as needed)
+          xcodebuild test -scheme "$scheme" -"$filetype_parameter" "$file_to_build" \
+            -destination 'platform=iOS Simulator,name=iPhone 13,OS=16.0' | xcpretty
+          exit ${PIPESTATUS[0]}
